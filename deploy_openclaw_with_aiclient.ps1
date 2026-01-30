@@ -663,17 +663,6 @@ function Configure-OpenClawWithAIClient {
     }
     $config.gateway | Add-Member -NotePropertyName "mode" -NotePropertyValue "local" -Force
     
-    # 配置 gateway.auth.token（生成随机 token）
-    if (-not $config.gateway.auth) {
-        $config.gateway | Add-Member -NotePropertyName "auth" -NotePropertyValue ([PSCustomObject]@{}) -Force
-    }
-    # 生成一个随机 token（如果不存在）
-    if (-not $config.gateway.auth.token) {
-        $randomToken = [System.Guid]::NewGuid().ToString("N").Substring(0, 32)
-        $config.gateway.auth | Add-Member -NotePropertyName "token" -NotePropertyValue $randomToken -Force
-        Write-Host "[*] 生成 Gateway 认证 Token: $randomToken" -ForegroundColor Yellow
-    }
-    
     # 询问是否配置 Telegram Bot
     Write-Host ""
     Write-Host "========================================" -ForegroundColor Cyan
@@ -697,20 +686,33 @@ function Configure-OpenClawWithAIClient {
     
     $configureTelegram = Read-Host "是否现在配置 Telegram Bot? (y/n, 默认 n)"
     
+    $telegramConfigured = $false
     if ($configureTelegram -eq "y") {
         Write-Host ""
         $telegramToken = Read-Host "请输入 Telegram Bot Token"
         
         if ($telegramToken) {
-            # 添加 Telegram 配置到 channels
+            # 添加 Telegram 配置到 channels（使用正确的格式）
             if (-not $config.channels) {
                 $config | Add-Member -NotePropertyName "channels" -NotePropertyValue ([PSCustomObject]@{}) -Force
             }
-            $config.channels | Add-Member -NotePropertyName "telegram" -NotePropertyValue ([PSCustomObject]@{
-                token = $telegramToken
-                dmPolicy = "pairing"
-                allowFrom = @()
-            }) -Force
+            if (-not $config.channels.telegram) {
+                $config.channels | Add-Member -NotePropertyName "telegram" -NotePropertyValue ([PSCustomObject]@{}) -Force
+            }
+            $config.channels.telegram | Add-Member -NotePropertyName "enabled" -NotePropertyValue $true -Force
+            $config.channels.telegram | Add-Member -NotePropertyName "botToken" -NotePropertyValue $telegramToken -Force
+            
+            # 添加 Telegram 插件配置
+            if (-not $config.plugins) {
+                $config | Add-Member -NotePropertyName "plugins" -NotePropertyValue ([PSCustomObject]@{}) -Force
+            }
+            if (-not $config.plugins.entries) {
+                $config.plugins | Add-Member -NotePropertyName "entries" -NotePropertyValue ([PSCustomObject]@{}) -Force
+            }
+            if (-not $config.plugins.entries.telegram) {
+                $config.plugins.entries | Add-Member -NotePropertyName "telegram" -NotePropertyValue ([PSCustomObject]@{}) -Force
+            }
+            $config.plugins.entries.telegram | Add-Member -NotePropertyName "enabled" -NotePropertyValue $true -Force
             
             Write-Host "[✓] Telegram Bot 配置已添加" -ForegroundColor Green
             Write-Host "    DM 策略: pairing (需要配对码批准)" -ForegroundColor Gray
@@ -719,12 +721,10 @@ function Configure-OpenClawWithAIClient {
         } else {
             Write-Host "[!] 未输入 Token，跳过 Telegram 配置" -ForegroundColor Yellow
             Write-Host "    稍后可运行 'openclaw configure' 配置" -ForegroundColor Gray
-            $telegramConfigured = $false
         }
     } else {
         Write-Host "[*] 跳过 Telegram 配置" -ForegroundColor Yellow
-        Write-Host "    稍后可运行 'openclaw onboard' 或 'openclaw configure' 配置" -ForegroundColor Gray
-        $telegramConfigured = $false
+        Write-Host "    稍后可运行 'openclaw configure' 配置" -ForegroundColor Gray
     }
     
     # 保存配置
@@ -747,11 +747,10 @@ function Configure-OpenClawWithAIClient {
     Write-Host "Model: $modelName" -ForegroundColor White
     Write-Host "Alias: $modelAlias" -ForegroundColor White
     Write-Host "Gateway Mode: local" -ForegroundColor White
-    Write-Host "Gateway Token: $($config.gateway.auth.token)" -ForegroundColor White
     if ($telegramConfigured) {
         Write-Host "Telegram: 已配置" -ForegroundColor Green
     } else {
-        Write-Host "Telegram: 未配置" -ForegroundColor Yellow
+        Write-Host "Telegram: 未配置（可用 'openclaw configure' 配置）" -ForegroundColor Yellow
     }
     Write-Host "Config: $configPath" -ForegroundColor White
     if ($autoConfig.hotyiDevPath) {
@@ -1261,7 +1260,7 @@ function Generate-UsageGuide {
     $gatewayToken = ""
     $telegramConfigured = $false
     
-    # 获取版本信息（不调用 openclaw 命令，避免配置错误）
+    # 获取版本信息
     $nodeVersion = "未知"
     $openclawVersion = "已安装"
     
@@ -1273,15 +1272,8 @@ function Generate-UsageGuide {
     }
     
     try {
-        # 尝试从 package.json 读取版本
-        $npmPrefix = (npm config get prefix 2>$null).Trim()
-        if ($npmPrefix) {
-            $openclawPackageJson = Join-Path $npmPrefix "node_modules\openclaw\package.json"
-            if (Test-Path $openclawPackageJson) {
-                $packageInfo = Get-Content $openclawPackageJson -Raw -Encoding UTF8 | ConvertFrom-Json
-                $openclawVersion = $packageInfo.version
-            }
-        }
+        $openclawVersion = (openclaw --version 2>$null)
+        if (-not $openclawVersion) { $openclawVersion = "已安装" }
     } catch {
         $openclawVersion = "已安装"
     }
@@ -1298,7 +1290,7 @@ function Generate-UsageGuide {
             if ($config.gateway.auth.token) {
                 $gatewayToken = $config.gateway.auth.token
             }
-            if ($config.channels.telegram.token) {
+            if ($config.channels.telegram.botToken) {
                 $telegramConfigured = $true
             }
         } catch {
