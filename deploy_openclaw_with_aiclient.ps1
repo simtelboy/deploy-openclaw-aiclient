@@ -645,6 +645,17 @@ function Configure-OpenClawWithAIClient {
     }
     $config.gateway | Add-Member -NotePropertyName "mode" -NotePropertyValue "local" -Force
     
+    # 配置 gateway.auth.token（生成随机 token）
+    if (-not $config.gateway.auth) {
+        $config.gateway | Add-Member -NotePropertyName "auth" -NotePropertyValue ([PSCustomObject]@{}) -Force
+    }
+    # 生成一个随机 token（如果不存在）
+    if (-not $config.gateway.auth.token) {
+        $randomToken = [System.Guid]::NewGuid().ToString("N").Substring(0, 32)
+        $config.gateway.auth | Add-Member -NotePropertyName "token" -NotePropertyValue $randomToken -Force
+        Write-Host "[*] 生成 Gateway 认证 Token: $randomToken" -ForegroundColor Yellow
+    }
+    
     # 保存配置
     try {
         $jsonConfig = $config | ConvertTo-Json -Depth 100 -Compress:$false
