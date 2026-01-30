@@ -1117,11 +1117,15 @@ function Main {
     Write-Host "  3.4 批准用户配对" -ForegroundColor Cyan
     Write-Host "    1) 在 Telegram 中搜索你的机器人（用户名）" -ForegroundColor White
     Write-Host "    2) 发送 /start 或任何消息" -ForegroundColor White
-    Write-Host "    3) 机器人会回复配对码（如: EFUL2WEB）和你的 User ID" -ForegroundColor White
+    Write-Host "    3) 机器人会回复配对信息:" -ForegroundColor White
+    Write-Host "       - 配对码（如: EFUL2WEB）" -ForegroundColor Gray
+    Write-Host "       - 你的 Telegram User ID（如: 2125609160）" -ForegroundColor Gray
+    Write-Host "       - 批准命令示例" -ForegroundColor Gray
     Write-Host "    4) 在终端运行批准命令:" -ForegroundColor White
     Write-Host "       openclaw pairing approve telegram <配对码>" -ForegroundColor Cyan
-    Write-Host "       例如: openclaw pairing approve telegram EFUL2WEB" -ForegroundColor Gray
-    Write-Host "    5) 批准后，在 Telegram 中重新发送消息测试" -ForegroundColor White
+    Write-Host "       例如: openclaw pairing approve telegram EFUL2WEB" -ForegroundColor DarkGray
+    Write-Host "    5) 看到 'Approved telegram sender <User ID>' 表示成功" -ForegroundColor White
+    Write-Host "    6) 批准后，在 Telegram 中重新发送消息测试" -ForegroundColor White
     Write-Host ""
     
     Write-Host "步骤 4: 测试机器人" -ForegroundColor Yellow
@@ -1129,6 +1133,23 @@ function Main {
     Write-Host "  - '你好，你可以说中文吗？'" -ForegroundColor Gray
     Write-Host "  - '介绍一下你自己'" -ForegroundColor Gray
     Write-Host "  - '用中文写一首诗'" -ForegroundColor Gray
+    Write-Host ""
+    Write-Host "  首次使用需要配对批准:" -ForegroundColor Cyan
+    Write-Host "  1) 在 Telegram 中搜索你的机器人（用户名）" -ForegroundColor White
+    Write-Host "  2) 发送 /start 或任何消息" -ForegroundColor White
+    Write-Host "  3) 机器人会回复配对信息，包含:" -ForegroundColor White
+    Write-Host "     - 配对码（如: EFUL2WEB）" -ForegroundColor Gray
+    Write-Host "     - 你的 Telegram User ID（如: 2125609160）" -ForegroundColor Gray
+    Write-Host "  4) 在终端运行批准命令:" -ForegroundColor White
+    Write-Host "     openclaw pairing approve telegram <配对码>" -ForegroundColor Cyan
+    Write-Host "     例如: openclaw pairing approve telegram EFUL2WEB" -ForegroundColor DarkGray
+    Write-Host "  5) 批准成功后，在 Telegram 中重新发送消息测试" -ForegroundColor White
+    Write-Host "  6) 机器人应该会通过 AIClient-2-API 调用 Claude Sonnet 4.5 回复" -ForegroundColor White
+    Write-Host ""
+    Write-Host "  配对管理命令:" -ForegroundColor Cyan
+    Write-Host "  - 查看所有配对: openclaw pairing list" -ForegroundColor White
+    Write-Host "  - 批准配对: openclaw pairing approve telegram <配对码>" -ForegroundColor White
+    Write-Host "  - 撤销配对: openclaw pairing revoke telegram <User ID>" -ForegroundColor White
     Write-Host ""
     
     Write-Host "========================================" -ForegroundColor Cyan
