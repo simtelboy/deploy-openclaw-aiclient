@@ -663,6 +663,18 @@ function Configure-OpenClawWithAIClient {
     }
     $config.gateway | Add-Member -NotePropertyName "mode" -NotePropertyValue "local" -Force
     
+    # 配置 gateway.auth.token（生成随机 token，如果不存在）
+    if (-not $config.gateway.auth) {
+        $config.gateway | Add-Member -NotePropertyName "auth" -NotePropertyValue ([PSCustomObject]@{}) -Force
+    }
+    if (-not $config.gateway.auth.token) {
+        $randomToken = [System.Guid]::NewGuid().ToString("N").Substring(0, 32)
+        $config.gateway.auth | Add-Member -NotePropertyName "token" -NotePropertyValue $randomToken -Force
+        Write-Host "[*] 生成 Gateway 认证 Token: $randomToken" -ForegroundColor Yellow
+    } else {
+        Write-Host "[*] 使用现有 Gateway Token: $($config.gateway.auth.token)" -ForegroundColor Gray
+    }
+    
     # 询问是否配置 Telegram Bot
     Write-Host ""
     Write-Host "========================================" -ForegroundColor Cyan
@@ -747,11 +759,14 @@ function Configure-OpenClawWithAIClient {
     Write-Host "Model: $modelName" -ForegroundColor White
     Write-Host "Alias: $modelAlias" -ForegroundColor White
     Write-Host "Gateway Mode: local" -ForegroundColor White
+    Write-Host "Gateway Token: $($config.gateway.auth.token)" -ForegroundColor White
     if ($telegramConfigured) {
         Write-Host "Telegram: 已配置" -ForegroundColor Green
     } else {
         Write-Host "Telegram: 未配置（可用 'openclaw configure' 配置）" -ForegroundColor Yellow
     }
+    Write-Host ""
+    Write-Host "Dashboard URL: http://127.0.0.1:18789/?token=$($config.gateway.auth.token)" -ForegroundColor Cyan
     Write-Host "Config: $configPath" -ForegroundColor White
     if ($autoConfig.hotyiDevPath) {
         Write-Host "hotyi-dev: $($autoConfig.hotyiDevPath)" -ForegroundColor White
