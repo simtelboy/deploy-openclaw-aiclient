@@ -656,7 +656,61 @@ function Configure-OpenClawWithAIClient {
         Write-Host "[*] 生成 Gateway 认证 Token: $randomToken" -ForegroundColor Yellow
     }
     
+    # 询问是否配置 Telegram Bot
+    Write-Host ""
+    Write-Host "========================================" -ForegroundColor Cyan
+    Write-Host "   Telegram Bot 配置（可选）            " -ForegroundColor Cyan
+    Write-Host "========================================" -ForegroundColor Cyan
+    Write-Host ""
+    Write-Host "如果你想让机器人在 Telegram 中工作，需要配置 Telegram Bot Token" -ForegroundColor Yellow
+    Write-Host ""
+    Write-Host "获取 Telegram Bot Token 的步骤：" -ForegroundColor Cyan
+    Write-Host "1. 在 Telegram 中搜索: @BotFather" -ForegroundColor White
+    Write-Host "2. 发送命令: /newbot" -ForegroundColor White
+    Write-Host "3. 按提示输入机器人名称（如: My OpenClaw Bot）" -ForegroundColor White
+    Write-Host "4. 输入机器人用户名（必须以 bot 结尾，如: myopenclaw_bot）" -ForegroundColor White
+    Write-Host "5. 复制 BotFather 给你的 Token（格式: 1234567890:ABC...）" -ForegroundColor White
+    Write-Host ""
+    Write-Host "设置隐私模式（重要）：" -ForegroundColor Cyan
+    Write-Host "1. 在与 @BotFather 的对话中发送: /setprivacy" -ForegroundColor White
+    Write-Host "2. 选择你的机器人" -ForegroundColor White
+    Write-Host "3. 选择 'Disable' - 这样机器人才能接收所有消息" -ForegroundColor White
+    Write-Host ""
+    
+    $configureTelegram = Read-Host "是否现在配置 Telegram Bot? (y/n, 默认 n)"
+    
+    if ($configureTelegram -eq "y") {
+        Write-Host ""
+        $telegramToken = Read-Host "请输入 Telegram Bot Token"
+        
+        if ($telegramToken) {
+            # 添加 Telegram 配置到 channels
+            if (-not $config.channels) {
+                $config | Add-Member -NotePropertyName "channels" -NotePropertyValue ([PSCustomObject]@{}) -Force
+            }
+            $config.channels | Add-Member -NotePropertyName "telegram" -NotePropertyValue ([PSCustomObject]@{
+                token = $telegramToken
+                dmPolicy = "pairing"
+                allowFrom = @()
+            }) -Force
+            
+            Write-Host "[✓] Telegram Bot 配置已添加" -ForegroundColor Green
+            Write-Host "    DM 策略: pairing (需要配对码批准)" -ForegroundColor Gray
+            Write-Host "    批准命令: openclaw pairing approve telegram <配对码>" -ForegroundColor Gray
+            $telegramConfigured = $true
+        } else {
+            Write-Host "[!] 未输入 Token，跳过 Telegram 配置" -ForegroundColor Yellow
+            Write-Host "    稍后可运行 'openclaw configure' 配置" -ForegroundColor Gray
+            $telegramConfigured = $false
+        }
+    } else {
+        Write-Host "[*] 跳过 Telegram 配置" -ForegroundColor Yellow
+        Write-Host "    稍后可运行 'openclaw onboard' 或 'openclaw configure' 配置" -ForegroundColor Gray
+        $telegramConfigured = $false
+    }
+    
     # 保存配置
+    Write-Host ""
     try {
         $jsonConfig = $config | ConvertTo-Json -Depth 100 -Compress:$false
         $jsonConfig | Set-Content $configPath -Encoding UTF8
@@ -675,6 +729,12 @@ function Configure-OpenClawWithAIClient {
     Write-Host "Model: $modelName" -ForegroundColor White
     Write-Host "Alias: $modelAlias" -ForegroundColor White
     Write-Host "Gateway Mode: local" -ForegroundColor White
+    Write-Host "Gateway Token: $($config.gateway.auth.token)" -ForegroundColor White
+    if ($telegramConfigured) {
+        Write-Host "Telegram: 已配置" -ForegroundColor Green
+    } else {
+        Write-Host "Telegram: 未配置" -ForegroundColor Yellow
+    }
     Write-Host "Config: $configPath" -ForegroundColor White
     if ($autoConfig.hotyiDevPath) {
         Write-Host "hotyi-dev: $($autoConfig.hotyiDevPath)" -ForegroundColor White
@@ -1009,6 +1069,8 @@ function Main {
     Write-Host "  启动命令: openclaw gateway" -ForegroundColor White
     Write-Host "  说明: 启动 WebSocket Gateway，监听 ws://127.0.0.1:18789" -ForegroundColor Gray
     Write-Host "  注意: 保持此终端窗口打开，不要关闭" -ForegroundColor Gray
+    Write-Host "  提示: Gateway 启动时会自动打开浏览器，但 URL 不带 token" -ForegroundColor Yellow
+    Write-Host "        请关闭该窗口，使用 'openclaw dashboard' 打开正确的 URL" -ForegroundColor Yellow
     Write-Host ""
     Write-Host "  Gateway 管理命令:" -ForegroundColor Cyan
     Write-Host "    启动: openclaw gateway" -ForegroundColor White
@@ -1095,14 +1157,42 @@ function Main {
     Write-Host ""
     Write-Host "Web 管理界面（Dashboard）:" -ForegroundColor Cyan
     Write-Host "- 命令: openclaw dashboard" -ForegroundColor White
-    Write-Host "- 说明: 自动打开浏览器访问 Web 控制面板" -ForegroundColor Gray
-    Write-Host "- 地址: http://127.0.0.1:18789/" -ForegroundColor Gray
+    Write-Host "- 说明: 自动打开浏览器访问 Web 控制面板（带认证 Token）" -ForegroundColor Gray
+    Write-Host "- 地址: http://127.0.0.1:18789/?token=<自动生成>" -ForegroundColor Gray
+    Write-Host "- 注意: 不要直接访问 http://127.0.0.1:18789/，会提示 token 缺失" -ForegroundColor Yellow
     Write-Host "- 功能: 查看状态、管理会话、配置设置、查看日志等" -ForegroundColor Gray
+    Write-Host ""
+    Write-Host "获取 Gateway Token:" -ForegroundColor Cyan
+    Write-Host "- 命令: openclaw config get gateway.auth.token" -ForegroundColor White
+    Write-Host "- 或查看配置文件: $env:USERPROFILE\.openclaw\openclaw.json" -ForegroundColor Gray
     Write-Host ""
     Write-Host "文档链接:" -ForegroundColor Cyan
     Write-Host "- OpenClaw 官方文档: https://docs.openclaw.ai" -ForegroundColor Gray
     Write-Host "- Telegram 配置: https://docs.openclaw.ai/channels/telegram" -ForegroundColor Gray
     Write-Host "- 安全指南: https://docs.openclaw.ai/gateway/security" -ForegroundColor Gray
+    Write-Host ""
+    Write-Host "高级配置选项:" -ForegroundColor Cyan
+    Write-Host "如需配置更多功能，可以使用以下方式：" -ForegroundColor White
+    Write-Host ""
+    Write-Host "1. 命令行配置工具:" -ForegroundColor Yellow
+    Write-Host "   openclaw configure" -ForegroundColor White
+    Write-Host "   - 配置其他通讯平台（WhatsApp、Discord、Slack 等）" -ForegroundColor Gray
+    Write-Host "   - 修改 Workspace 路径" -ForegroundColor Gray
+    Write-Host "   - 切换 AI 模型" -ForegroundColor Gray
+    Write-Host "   - 配置 Web 搜索工具（Brave Search API）" -ForegroundColor Gray
+    Write-Host "   - 管理 Skills（技能插件）" -ForegroundColor Gray
+    Write-Host ""
+    Write-Host "2. Web 管理界面:" -ForegroundColor Yellow
+    Write-Host "   openclaw dashboard" -ForegroundColor White
+    Write-Host "   - 可视化配置界面" -ForegroundColor Gray
+    Write-Host "   - 查看和管理会话" -ForegroundColor Gray
+    Write-Host "   - 实时查看日志" -ForegroundColor Gray
+    Write-Host "   - 管理配对和权限" -ForegroundColor Gray
+    Write-Host ""
+    Write-Host "3. 完整配置向导:" -ForegroundColor Yellow
+    Write-Host "   openclaw onboard" -ForegroundColor White
+    Write-Host "   - 交互式完整配置流程" -ForegroundColor Gray
+    Write-Host "   - 适合首次设置或重新配置" -ForegroundColor Gray
     Write-Host ""
     Write-Host "提示：" -ForegroundColor Cyan
     Write-Host "- OpenClaw 已配置使用 AIClient-2-API (Claude Sonnet 4.5)" -ForegroundColor Gray
