@@ -1220,6 +1220,409 @@ function Main {
     Write-Host "- 配置文件: $env:USERPROFILE\.openclaw\openclaw.json" -ForegroundColor Gray
     Write-Host "- 查看帮助: openclaw --help" -ForegroundColor Gray
     Write-Host ""
+    
+    # 生成 Markdown 使用指南到桌面
+    Generate-UsageGuide
+}
+
+# 生成 Markdown 使用指南到桌面
+function Generate-UsageGuide {
+    Write-Host ""
+    Write-Host "========================================" -ForegroundColor Cyan
+    Write-Host "      生成使用指南文档                  " -ForegroundColor Cyan
+    Write-Host "========================================" -ForegroundColor Cyan
+    Write-Host ""
+    
+    $desktopPath = [Environment]::GetFolderPath("Desktop")
+    $guidePath = Join-Path $desktopPath "OpenClaw使用指南.md"
+    
+    # 读取配置信息
+    $configPath = "$env:USERPROFILE\.openclaw\openclaw.json"
+    $modelName = "claude-sonnet-4-5"
+    $gatewayMode = "local"
+    $gatewayToken = ""
+    $telegramConfigured = $false
+    
+    if (Test-Path $configPath) {
+        try {
+            $config = Get-Content $configPath -Raw -Encoding UTF8 | ConvertFrom-Json
+            if ($config.agents.defaults.model.primary) {
+                $modelName = $config.agents.defaults.model.primary -replace "aiclient-kiro/", ""
+            }
+            if ($config.gateway.mode) {
+                $gatewayMode = $config.gateway.mode
+            }
+            if ($config.gateway.auth.token) {
+                $gatewayToken = $config.gateway.auth.token
+            }
+            if ($config.channels.telegram.token) {
+                $telegramConfigured = $true
+            }
+        } catch {
+            Write-Host "[!] 无法读取配置文件，使用默认值" -ForegroundColor Yellow
+        }
+    }
+    
+    # 生成 Markdown 内容
+    $markdownContent = @"
+# OpenClaw + AIClient-2-API 使用指南
+
+> 生成时间: $(Get-Date -Format "yyyy-MM-dd HH:mm:ss")
+> 配置文件: ``$env:USERPROFILE\.openclaw\openclaw.json``
+
+---
+
+## 📋 配置摘要
+
+| 项目 | 配置 |
+|------|------|
+| **AI 模型** | $modelName (通过 AIClient-2-API) |
+| **Gateway 模式** | $gatewayMode |
+| **Gateway Token** | $gatewayToken |
+| **Telegram Bot** | $(if ($telegramConfigured) { "✓ 已配置" } else { "✗ 未配置" }) |
+| **Node.js 版本** | $(node -v 2>$null) |
+| **OpenClaw 版本** | $(openclaw --version 2>$null) |
+
+---
+
+## 🚀 快速启动
+
+### 步骤 1: 启动 AIClient-2-API 服务
+
+AIClient-2-API 是连接 AWS Kiro API 的桥梁，必须先启动。
+
+**方法 1: 命令行启动**
+``````powershell
+cd F:\hotyi-dev\AIClient-2-API
+node src/services/api-server.js
+``````
+
+**方法 2: Web UI 启动**
+``````powershell
+cd F:\hotyi-dev\AIClient-2-API
+npm start
+``````
+
+> **注意**: 保持此终端窗口打开，不要关闭！
+
+---
+
+### 步骤 2: 启动 OpenClaw Gateway
+
+在**新的终端窗口**中运行：
+
+``````powershell
+openclaw gateway
+``````
+
+**说明**:
+- Gateway 监听地址: ``ws://127.0.0.1:18789``
+- 保持此终端窗口打开，不要关闭
+- Gateway 启动时会自动打开浏览器，但 URL 不带 token
+- **请关闭自动打开的浏览器窗口**，使用下面的命令打开正确的 URL
+
+**打开 Web 管理界面**:
+``````powershell
+openclaw dashboard
+``````
+
+> 此命令会自动打开浏览器并附带认证 Token
+
+---
+
+### 步骤 3: 配置 Telegram Bot（可选）
+
+$(if ($telegramConfigured) {
+@"
+✓ **Telegram Bot 已配置**
+
+你可以直接在 Telegram 中搜索你的机器人并开始使用。
+
+**首次使用需要配对批准**，请参考下面的「配对批准流程」。
+"@
+} else {
+@"
+✗ **Telegram Bot 未配置**
+
+如果你想让机器人在 Telegram 中工作，请按以下步骤配置：
+
+#### 3.1 创建 Telegram Bot
+
+1. 在 Telegram 中搜索: ``@BotFather``
+2. 点击 **START** 或发送: ``/newbot``
+3. 输入机器人名称（如: ``My OpenClaw Bot``）
+4. 输入机器人用户名（必须以 ``bot`` 结尾，如: ``myopenclaw_bot``）
+5. 复制 BotFather 给你的 **API Token**（格式: ``1234567890:ABC...``）
+
+#### 3.2 设置机器人隐私模式
+
+1. 在与 @BotFather 的对话中发送: ``/setprivacy``
+2. 选择你刚创建的机器人
+3. 选择 **Disable** 或输入 ``Disable``
+
+> **说明**: 禁用隐私模式，机器人才能接收所有消息
+
+#### 3.3 配置 OpenClaw
+
+在新终端运行:
+``````powershell
+openclaw onboard
+``````
+
+按提示操作:
+1. 选择风险确认 **Yes**
+2. 选择 **QuickStart** 模式
+3. 选择 **Use existing values** 保持我们的配置
+4. 选择 **Skip for now** 跳过 AI 平台配置
+5. 选择 **aiclient-kiro** 作为 provider
+6. 选择 **Keep current** 保持当前模型
+7. 选择 **Telegram (Bot API)**
+8. 粘贴你的 Telegram Bot Token
+9. 跳过其他配置，完成设置
+"@
+})
+
+---
+
+### 步骤 4: 配对批准（Telegram）
+
+首次使用 Telegram 机器人时，需要进行配对批准。
+
+#### 4.1 获取配对码
+
+1. 在 Telegram 中搜索你的机器人（用户名）
+2. 发送 ``/start`` 或任何消息
+3. 机器人会回复配对信息:
+   - **配对码**（如: ``EFUL2WEB``）
+   - **你的 Telegram User ID**（如: ``2125609160``）
+   - **批准命令示例**
+
+#### 4.2 批准配对
+
+在终端运行批准命令:
+``````powershell
+openclaw pairing approve telegram <配对码>
+``````
+
+**示例**:
+``````powershell
+openclaw pairing approve telegram EFUL2WEB
+``````
+
+看到 ``Approved telegram sender <User ID>`` 表示成功。
+
+#### 4.3 测试机器人
+
+批准后，在 Telegram 中重新发送消息测试:
+- "你好，你可以说中文吗？"
+- "介绍一下你自己"
+- "用中文写一首诗"
+
+机器人应该会通过 AIClient-2-API 调用 Claude Sonnet 4.5 回复。
+
+---
+
+## 🛠️ 常用管理命令
+
+### Gateway 管理
+
+| 命令 | 说明 |
+|------|------|
+| ``openclaw gateway`` | 启动 Gateway |
+| ``Ctrl+C`` | 停止 Gateway（在 Gateway 终端） |
+| ``openclaw health`` | 检查 Gateway 状态 |
+| ``openclaw logs`` | 查看 Gateway 日志 |
+| ``openclaw dashboard`` | 打开 Web 管理界面（带 Token） |
+
+### 配对管理
+
+| 命令 | 说明 |
+|------|------|
+| ``openclaw pairing list`` | 查看所有配对 |
+| ``openclaw pairing approve telegram <配对码>`` | 批准 Telegram 配对 |
+| ``openclaw pairing revoke telegram <User ID>`` | 撤销 Telegram 配对 |
+
+### 配置管理
+
+| 命令 | 说明 |
+|------|------|
+| ``openclaw configure`` | 打开配置工具 |
+| ``openclaw onboard`` | 重新运行配置向导 |
+| ``openclaw config get <key>`` | 获取配置值 |
+| ``openclaw config set <key> <value>`` | 设置配置值 |
+
+### 其他命令
+
+| 命令 | 说明 |
+|------|------|
+| ``openclaw --help`` | 查看帮助 |
+| ``openclaw --version`` | 查看版本 |
+
+---
+
+## 🌐 Web 管理界面（Dashboard）
+
+### 访问方式
+
+**推荐方式**（自动附带 Token）:
+``````powershell
+openclaw dashboard
+``````
+
+**手动访问**（需要手动添加 Token）:
+``````
+http://127.0.0.1:18789/?token=$gatewayToken
+``````
+
+> **注意**: 不要直接访问 ``http://127.0.0.1:18789/``，会提示 token 缺失
+
+### 功能介绍
+
+- ✓ 查看 Gateway 状态
+- ✓ 管理会话和对话
+- ✓ 配置设置
+- ✓ 查看实时日志
+- ✓ 管理配对和权限
+- ✓ 监控资源使用
+
+---
+
+## ⚙️ 高级配置
+
+### 1. 命令行配置工具
+
+``````powershell
+openclaw configure
+``````
+
+**可配置项**:
+- 其他通讯平台（WhatsApp、Discord、Slack 等）
+- Workspace 路径
+- AI 模型切换
+- Web 搜索工具（Brave Search API）
+- Skills（技能插件）管理
+
+### 2. Web 管理界面
+
+``````powershell
+openclaw dashboard
+``````
+
+**功能**:
+- 可视化配置界面
+- 查看和管理会话
+- 实时查看日志
+- 管理配对和权限
+
+### 3. 完整配置向导
+
+``````powershell
+openclaw onboard
+``````
+
+**适用场景**:
+- 首次设置
+- 重新配置
+- 添加新的通讯平台
+
+---
+
+## 📚 文档链接
+
+- [OpenClaw 官方文档](https://docs.openclaw.ai)
+- [Telegram 配置指南](https://docs.openclaw.ai/channels/telegram)
+- [安全指南](https://docs.openclaw.ai/gateway/security)
+- [AIClient-2-API GitHub](https://github.com/simtelboy/AIClient-2-API)
+- [部署脚本 GitHub](https://github.com/simtelboy/deploy-openclaw-aiclient)
+
+---
+
+## ⚠️ 重要提示
+
+### 必须保持运行的服务
+
+1. **AIClient-2-API 服务** - 必须一直运行
+   - 启动命令: ``node src/services/api-server.js``
+   - 或: ``npm start``
+
+2. **OpenClaw Gateway** - 必须一直运行
+   - 启动命令: ``openclaw gateway``
+   - 保持终端窗口打开
+
+### 注意事项
+
+- ✓ 确保 AIClient-2-API 服务一直运行
+- ✓ 确保 OpenClaw Gateway 终端窗口保持打开
+- ✓ 中文路径可能有编码问题，建议使用英文路径
+- ✓ 首次使用 Telegram 需要配对批准
+- ✓ Gateway Token 用于 Web 管理界面认证
+- ✓ API Key 用于 AIClient-2-API 认证（不同用途）
+
+### 故障排查
+
+**问题 1: Telegram 机器人不回复**
+- 检查 AIClient-2-API 是否运行
+- 检查 OpenClaw Gateway 是否运行
+- 检查是否已完成配对批准
+- 查看日志: ``openclaw logs``
+
+**问题 2: Web 管理界面无法访问**
+- 使用 ``openclaw dashboard`` 命令打开（自动附带 Token）
+- 不要直接访问 ``http://127.0.0.1:18789/``
+- 检查 Gateway 是否运行: ``openclaw health``
+
+**问题 3: API 调用失败**
+- 检查 Kiro IDE 是否登录
+- 检查 Kiro Token 是否过期
+- 重启 AIClient-2-API 服务
+
+---
+
+## 🔄 卸载和重新安装
+
+### 卸载 OpenClaw
+
+``````powershell
+cd F:\hotyi-dev\AIClient-2-API\deploy-clawdbot
+.\deploy_openclaw_with_aiclient.ps1
+``````
+
+选择 **5. 卸载 OpenClaw**
+
+### 重新安装
+
+运行相同的脚本，选择 **1. 完整安装**
+
+---
+
+## 📞 获取帮助
+
+- 查看命令帮助: ``openclaw --help``
+- 查看配置: ``openclaw config list``
+- 查看日志: ``openclaw logs``
+- 检查状态: ``openclaw health``
+
+---
+
+**祝你使用愉快！** 🎉
+"@
+
+    # 保存文件（UTF-8 with BOM）
+    try {
+        $utf8Bom = New-Object System.Text.UTF8Encoding $true
+        [System.IO.File]::WriteAllText($guidePath, $markdownContent, $utf8Bom)
+        
+        Write-Host "[✓] 使用指南已保存到桌面" -ForegroundColor Green
+        Write-Host "    文件路径: $guidePath" -ForegroundColor Gray
+        Write-Host ""
+        Write-Host "你可以使用以下方式打开:" -ForegroundColor Cyan
+        Write-Host "- Markdown 编辑器（如 Typora、VS Code）" -ForegroundColor White
+        Write-Host "- 记事本" -ForegroundColor White
+        Write-Host "- 浏览器（安装 Markdown 预览插件）" -ForegroundColor White
+        Write-Host ""
+    } catch {
+        Write-Host "[✗] 保存使用指南失败: $($_.Exception.Message)" -ForegroundColor Red
+    }
 }
 
 # 执行主流程
