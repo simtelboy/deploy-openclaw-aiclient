@@ -135,7 +135,25 @@ function Uninstall-OpenClaw {
     Write-Host "[1/4] 卸载 OpenClaw npm 包..." -ForegroundColor Cyan
     if (Get-Command openclaw -ErrorAction SilentlyContinue) {
         try {
-            npm uninstall -g openclaw 2>$null
+            Write-Host "  正在卸载，请稍候（可能需要 10-30 秒）..." -ForegroundColor Gray
+            
+            # 显示进度的方式卸载
+            $uninstallJob = Start-Job -ScriptBlock {
+                npm uninstall -g openclaw 2>&1
+            }
+            
+            # 等待任务完成，同时显示进度
+            $dots = 0
+            while ($uninstallJob.State -eq 'Running') {
+                Start-Sleep -Milliseconds 500
+                $dots = ($dots + 1) % 4
+                Write-Host "`r  卸载中$('.' * $dots)$(' ' * (3 - $dots))   " -NoNewline -ForegroundColor Gray
+            }
+            
+            $result = Receive-Job -Job $uninstallJob
+            Remove-Job -Job $uninstallJob
+            
+            Write-Host "`r  " -NoNewline
             Write-Host "[✓] OpenClaw npm 包已卸载" -ForegroundColor Green
         } catch {
             Write-Host "[!] 卸载失败: $($_.Exception.Message)" -ForegroundColor Yellow
@@ -1243,6 +1261,31 @@ function Generate-UsageGuide {
     $gatewayToken = ""
     $telegramConfigured = $false
     
+    # 获取版本信息（不调用 openclaw 命令，避免配置错误）
+    $nodeVersion = "未知"
+    $openclawVersion = "已安装"
+    
+    try {
+        $nodeVersion = (node --version 2>$null)
+        if (-not $nodeVersion) { $nodeVersion = "未知" }
+    } catch {
+        $nodeVersion = "未知"
+    }
+    
+    try {
+        # 尝试从 package.json 读取版本
+        $npmPrefix = (npm config get prefix 2>$null).Trim()
+        if ($npmPrefix) {
+            $openclawPackageJson = Join-Path $npmPrefix "node_modules\openclaw\package.json"
+            if (Test-Path $openclawPackageJson) {
+                $packageInfo = Get-Content $openclawPackageJson -Raw -Encoding UTF8 | ConvertFrom-Json
+                $openclawVersion = $packageInfo.version
+            }
+        }
+    } catch {
+        $openclawVersion = "已安装"
+    }
+    
     if (Test-Path $configPath) {
         try {
             $config = Get-Content $configPath -Raw -Encoding UTF8 | ConvertFrom-Json
@@ -1280,8 +1323,8 @@ function Generate-UsageGuide {
 | **Gateway 模式** | $gatewayMode |
 | **Gateway Token** | $gatewayToken |
 | **Telegram Bot** | $(if ($telegramConfigured) { "✓ 已配置" } else { "✗ 未配置" }) |
-| **Node.js 版本** | $(node -v 2>$null) |
-| **OpenClaw 版本** | $(openclaw --version 2>$null) |
+| **Node.js 版本** | $nodeVersion |
+| **OpenClaw 版本** | $openclawVersion |
 
 ---
 
