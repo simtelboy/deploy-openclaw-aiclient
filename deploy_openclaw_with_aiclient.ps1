@@ -1080,6 +1080,13 @@ function Main {
     Write-Host "- 配置管理: openclaw configure" -ForegroundColor White
     Write-Host "- 配对管理: openclaw pairing list" -ForegroundColor White
     Write-Host "- 重新配置: openclaw onboard" -ForegroundColor White
+    Write-Host "- 打开 Web 管理界面: openclaw dashboard" -ForegroundColor White
+    Write-Host ""
+    Write-Host "Web 管理界面（Dashboard）:" -ForegroundColor Cyan
+    Write-Host "- 命令: openclaw dashboard" -ForegroundColor White
+    Write-Host "- 说明: 自动打开浏览器访问 Web 控制面板" -ForegroundColor Gray
+    Write-Host "- 地址: http://127.0.0.1:18789/" -ForegroundColor Gray
+    Write-Host "- 功能: 查看状态、管理会话、配置设置、查看日志等" -ForegroundColor Gray
     Write-Host ""
     Write-Host "文档链接:" -ForegroundColor Cyan
     Write-Host "- OpenClaw 官方文档: https://docs.openclaw.ai" -ForegroundColor Gray
