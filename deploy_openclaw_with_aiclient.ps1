@@ -1181,7 +1181,6 @@ function Main {
     Write-Host "  配对管理命令:" -ForegroundColor Cyan
     Write-Host "  - 查看所有配对: openclaw pairing list" -ForegroundColor White
     Write-Host "  - 批准配对: openclaw pairing approve telegram <配对码>" -ForegroundColor White
-    Write-Host "  - 撤销配对: openclaw pairing revoke telegram <User ID>" -ForegroundColor White
     Write-Host ""
     
     Write-Host "========================================" -ForegroundColor Cyan
@@ -1490,7 +1489,6 @@ openclaw pairing approve telegram EFUL2WEB
 |------|------|
 | ``openclaw pairing list`` | 查看所有配对 |
 | ``openclaw pairing approve telegram <配对码>`` | 批准 Telegram 配对 |
-| ``openclaw pairing revoke telegram <User ID>`` | 撤销 Telegram 配对 |
 
 ### 配置管理
 
